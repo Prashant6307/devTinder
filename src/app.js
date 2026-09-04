@@ -1,13 +1,8 @@
 const express = require("express")
 const connectDB = require("./config/database")
 const dotenv = require("dotenv")
-const userModel = require("./models/user")
-const { validateSignUpData } = require("./utils/validation")
-const bcrypt = require("bcrypt")
-const validator = require("validator")
+
 const cookieParser = require("cookie-parser")
-const jwt = require("jsonwebtoken")
-const { userAuth } = require("./middlewares/auth")
 
 
 dotenv.config()
@@ -17,85 +12,17 @@ const app = express()
 app.use(cookieParser())
 app.use(express.json())
 
-app.post("/signup", async (req, res) => {
-    try {
-        // validating user data
-        validateSignUpData(req)
-
-        // encrypting password
-        const { firstName, lastName, emailId, password } = req.body
-        const passwordHash = await bcrypt.hash(password, 10)
-
-        const userdata = new userModel({
-            firstName,
-            lastName,
-            emailId,
-            password: passwordHash
-        })
 
 
-        await userdata.save()
-        res.status(200).send("user data saved successfully")
-    } catch (err) {
-
-        res.status(400).send("user data cannot be saved " + err)
-    }
-})
-
-app.post("/login", async (req, res) => {
-
-    try {
-        // checking emailId entered by the user before logging 
-        const { emailId, password } = req.body
-        if (!validator.isEmail(emailId)) {
-            throw new Error("Invalid credentials")
-        }
-
-        // check if user email exists in the DB
-        const user = await userModel.findOne({ emailId: emailId })
-        if (!user) {
-            throw new Error("Invalid credentials")
-        }
-
-        // comparing user password with passwordHash
-        const isPasswordValid = await user.validatePassword(password)
-
-        if (isPasswordValid) {
-
-            // creating jwt token
-            const token = await user.getJWT()
+const authRouter = require("./routes/auth")
+const profileRouter = require("./routes/profile")
+const requestRouter = require("./routes/request")
 
 
-            res.cookie("token", token, { expiresIn: new Date(Date.now + 8 * 3600000) })
-            res.send("Login successful")
-        }
-        else {
-            throw new Error("Invalid credentials")
-        }
+app.use("/", authRouter)
+app.use("/", profileRouter)
+app.use("/", requestRouter)
 
-    } catch (err) {
-        res.status(400).send("Error " + err.message)
-    }
-})
-
-app.get("/profile", userAuth, async (req, res) => {
-
-    try {
-
-        const user = req.user
-        res.send(user)
-    }
-    catch (err) {
-        res.send("something went wrong " + err.message)
-    }
-})
-
-app.post("/sendConnectionRequest", userAuth, async (req, res) => {
-
-    const user = req.user
-
-    res.send(user.firstName + " sent you the connection request")
-})
 
 connectDB().then(() => {
     console.log("Database connected successfully")
