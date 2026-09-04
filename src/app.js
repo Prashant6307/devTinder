@@ -4,11 +4,17 @@ const dotenv = require("dotenv")
 const userModel = require("./models/user")
 const { validateSignUpData } = require("./utils/validation")
 const bcrypt = require("bcrypt")
+const validator = require("validator")
+const cookieParser = require("cookie-parser")
+const jwt = require("jsonwebtoken")
+const { userAuth } = require("./middlewares/auth")
+
 
 dotenv.config()
 
 const app = express()
 
+app.use(cookieParser())
 app.use(express.json())
 
 app.post("/signup", async (req, res) => {
@@ -17,7 +23,7 @@ app.post("/signup", async (req, res) => {
         validateSignUpData(req)
 
         // encrypting password
-        const {firstName, lastName, emailId, password} = req.body
+        const { firstName, lastName, emailId, password } = req.body
         const passwordHash = await bcrypt.hash(password, 10)
 
         const userdata = new userModel({
@@ -32,67 +38,63 @@ app.post("/signup", async (req, res) => {
         res.status(200).send("user data saved successfully")
     } catch (err) {
 
-        res.status(400).send("user data cannot be saved "+ err)
+        res.status(400).send("user data cannot be saved " + err)
     }
 })
 
-app.get("/user", async (req, res) => {
-    const username = req.body.firstName
+app.post("/login", async (req, res) => {
 
     try {
-        const user = await userModel.find({ firstName: username })
+        // checking emailId entered by the user before logging 
+        const { emailId, password } = req.body
+        if (!validator.isEmail(emailId)) {
+            throw new Error("Invalid credentials")
+        }
 
-        if (user.length === 0) {
-            res.status(400).send("user not found")
-        } else {
-            res.send(username)
+        // check if user email exists in the DB
+        const user = await userModel.findOne({ emailId: emailId })
+        if (!user) {
+            throw new Error("Invalid credentials")
+        }
+
+        // comparing user password with passwordHash
+        const isPasswordValid = await user.validatePassword(password)
+
+        if (isPasswordValid) {
+
+            // creating jwt token
+            const token = await user.getJWT()
+
+
+            res.cookie("token", token, { expiresIn: new Date(Date.now + 8 * 3600000) })
+            res.send("Login successful")
+        }
+        else {
+            throw new Error("Invalid credentials")
         }
 
     } catch (err) {
-        res.send("something went wrong")
-    }
-
-})
-
-
-// Feed 
-app.get("/feed", async (req, res) => {
-
-    try {
-        const users = await userModel.find({})
-
-        res.send(users)
-    } catch (err) {
-        res.status(400).send("Something went wrong")
+        res.status(400).send("Error " + err.message)
     }
 })
 
-// Delete a user
-app.delete("/user", async (req, res) => {
-    const userId = req.body.userId
+app.get("/profile", userAuth, async (req, res) => {
 
     try {
-        const user = await userModel.findByIdAndDelete(userId)
-        res.status(400).send("User deleted successfully")
 
-    } catch (err) {
-        res.send("something went wrong, cannot delete the user " + err.message)
+        const user = req.user
+        res.send(user)
+    }
+    catch (err) {
+        res.send("something went wrong " + err.message)
     }
 })
 
-// Update the data of the user
-app.patch("/user", async (req, res) => {
-    const userId = req.body.userId
-    const data = req.body
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
 
-    try {
-        const userUpdatedData = await userModel.findByIdAndUpdate({ _id: userId }, data, {
-            runValidators: true
-        })
-        res.status(400).send("User data updated successfully")
-    } catch (err) {
-        res.send("something went wrong cannot update " + err.message)
-    }
+    const user = req.user
+
+    res.send(user.firstName + " sent you the connection request")
 })
 
 connectDB().then(() => {
