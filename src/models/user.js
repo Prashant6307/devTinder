@@ -13,32 +13,42 @@ const userSchema = mongoose.Schema({
     lastName: {
         type: String
     },
-    email: {
+    emailId: {
         type: String,
         required: true,
         unique: true,
         trim: true,
         lowercase: true,
-        validate(value){
-            if(!validator.isEmail(value)){
-                throw new Error ("email is not valid "+ value)
+        validate(value) {
+            if (!validator.isEmail(value)) {
+                throw new Error("email is not valid " + value)
             }
         }
     },
     password: {
         type: String,
         required: true,
+        validate(value) {
+            if (!validator.isStrongPassword(value)) {
+                throw new Error("Enter a Strong Password: " + value);
+            }
+        },
     },
     age: {
         type: Number
     },
     gender: {
         type: String,
-        validate(value) {
-            if (!["male", "female", "other"].includes(value)) {
-                throw new Error("Gender data is not valid")
-            }
+        enum: {
+            values:["male", "female", "others"],
+            message:'{VALUE} is not a valid gender type'
         }
+
+        // validate(value) {
+        //     if (!["male", "female", "other"].includes(value)) {
+        //         throw new Error("Gender data is not valid")
+        //     }
+        // }
     },
     photoUrl: {
         type: String,
@@ -53,10 +63,10 @@ const userSchema = mongoose.Schema({
     }
 }, { timestamps: true })
 
-userSchema.methods.getJWT = async function (){
+userSchema.methods.getJWT = async function () {
     const user = this
 
-    const token = await jwt.sign({ _id: user._id }, "DEV@TINDER$1234", {expiresIn: "7d"})
+    const token = await jwt.sign({ _id: user._id }, "DEV@TINDER$1234", { expiresIn: "7d" })
 
     return token
 

@@ -22,7 +22,7 @@ authRouter.post("/signup", async (req, res) => {
             firstName,
             lastName,
             emailId,
-            password: passwordHash
+            password: passwordHash,
         })
 
 
@@ -30,7 +30,7 @@ authRouter.post("/signup", async (req, res) => {
         res.status(200).send("user data saved successfully")
     } catch (err) {
 
-        res.status(400).send("user data cannot be saved " + err)
+        res.status(400).send("user data cannot be saved " + err.message)
     }
 })
 
@@ -58,7 +58,7 @@ authRouter.post("/login", async (req, res) => {
             const token = await user.getJWT()
 
 
-            res.cookie("token", token, { expiresIn: new Date(Date.now + 8 * 3600000) })
+            res.cookie("token", token, { expires: new Date(Date.now() + 8 * 3600000),httpOnly: true, })
             res.send("Login successful")
         }
         else {
@@ -68,6 +68,13 @@ authRouter.post("/login", async (req, res) => {
     } catch (err) {
         res.status(400).send("Error " + err.message)
     }
+})
+
+authRouter.post("/logout", (req, res)=>{
+    res.cookie("token", null, {
+        expiresIn: new Date(Date.now())
+    })
+    res.send("Logout successful")
 })
 
 module.exports = authRouter
