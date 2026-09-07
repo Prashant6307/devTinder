@@ -9,6 +9,7 @@ const Login = () => {
 
     const [emailId, setEmailId] = useState("stark@gmail.com")
     const [password, setPassword] = useState("Tony@123")
+    const [error, setError] = useState("")
 
     const navigate = useNavigate()
 
@@ -19,14 +20,15 @@ const Login = () => {
             const res = await axios.post(BASE_URL + "/login", {
                 emailId,
                 password
-            },{
+            }, {
                 withCredentials: true
             })
             dispatch(addUser(res.data))
             navigate("/")
-            
+
         }
         catch (err) {
+            setError(err?.response?.data || "Something went wrong")
             console.log(err.message)
         }
     }
@@ -57,6 +59,7 @@ const Login = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                             <div><a className="link link-hover">Forgot password?</a></div>
+                            {error && <p className="text-red-500"> {error}</p>}
                             <button className="btn btn-neutral mt-4" onClick={handleLogin}>Login</button>
                         </fieldset>
                     </div>
